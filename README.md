@@ -3,7 +3,7 @@
 4chan Koiwai-compatible scraper
 
 ## Features
-- Reasonable, configurable memory usage (can scrape just /a/ with 50mb)
+- Reasonable, configurable memory usage
 - Low CPU usage
 - S3 compatibility (also not compatible with anything other than S3)
 - File deduping across every board at once with SHA-256
