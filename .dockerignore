@@ -1,0 +1,25 @@
+#Configuration
+config.json
+
+#Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+#Git
+.git
+.gitignore
+.github
+
+#Executable
+kaguya
+
+#pprof pdfs
+*.pdf
+
+#Junk
+LICENSE
+README.md
+shell.nix
+config.example.json
+
