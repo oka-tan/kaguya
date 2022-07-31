@@ -2,33 +2,33 @@
 	"APIConfig": {
 		"RequestTimeout": "30s",
 		"Host": "https://a.4cdn.org",
-        "Goroutines": 4,
-        "NapTime": "0.2s"
+		"Goroutines": 4,
+		"NapTime": "0.2s"
 	},
 	"ImagesConfig": {
 		"RequestTimeout": "20s",
 		"Host": "https://is2.4chan.org",
-        "S3Endpoint": "s3:9000",
-        "S3AccessKeyID": "koiwai",
-        "S3SecretAccessKey": "12345678",
-        "S3UseSSL": false,
+		"S3Endpoint": "s3:9000",
+		"S3AccessKeyID": "koiwai",
+		"S3SecretAccessKey": "12345678",
+		"S3UseSSL": false,
 		"S3BucketName": "koiwai",
 		"S3Region": "us-west-1",
-        "Goroutines": 1
+		"Goroutines": 1
 	},
 	"ThumbnailsConfig": {
 		"RequestTimeout": "20s",
 		"Host": "https://is2.4chan.org",
-        "S3Endpoint": "s3:9000",
-        "S3AccessKeyID": "koiwai",
-        "S3SecretAccessKey": "12345678",
-        "S3UseSSL": false,
+		"S3Endpoint": "s3:9000",
+		"S3AccessKeyID": "koiwai",
+		"S3SecretAccessKey": "12345678",
+		"S3UseSSL": false,
 		"S3BucketName": "koiwai",
 		"S3Region": "us-west-1",
-        "Goroutines": 4
+		"Goroutines": 4
 	},
 	"PostgresConfig": {
-        "BatchSize": 50,
+		"BatchSize": 50,
 		"ConnectionString": "postgres://koiwai:koiwai@koiwai:5432/koiwai?sslmode=disable"
 	},
 	"Boards": [
@@ -37,7 +37,7 @@
 			"LongNapTime": "20s",
 			"Thumbnails": true,
 			"Media": true,
-            "SkipArchive": false
+			"SkipArchive": false
 		}
 	]
 }

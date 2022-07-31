@@ -2,13 +2,9 @@ package manager
 
 import (
 	"kaguya/api"
-
-	"github.com/uptrace/bun"
 )
 
 type updatedPost struct {
-	bun.BaseModel `bun:"select:updated_post"`
-
 	PostNumber   int64   `bun:"post_number"`
 	Comment      *string `bun:"comment"`
 	MediaDeleted *bool   `bun:"media_deleted"`

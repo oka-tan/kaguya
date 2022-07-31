@@ -1,7 +1,7 @@
 package thumbnail
 
 type thumbnailWithHash struct {
-	Board                 string `json:"board"`
-	PostNumber            int64  `json:"post_number"`
-	ThumbnailInternalHash []byte `json:"thumbnail_internal_hash"`
+	Board                 string `bun:"board"`
+	PostNumber            int64  `bun:"post_number"`
+	ThumbnailInternalHash []byte `bun:"thumbnail_internal_hash"`
 }

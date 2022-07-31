@@ -128,9 +128,9 @@ func (b *BoardManager) LoadArchivePosts() error {
 
 			threadNumbers := lo.FilterMap(dbPosts, func(p db.Post, _ int) (int64, bool) {
 				if p.Op {
-					return 0, false
+					return p.PostNumber, true
 				}
-				return p.PostNumber, true
+				return 0, false
 			})
 
 			utils.PatchLastModifiedCreatedAt(dbPosts, time.Now())
@@ -243,9 +243,9 @@ func (b *BoardManager) Init() error {
 
 	threadNumbers := lo.FilterMap(dbPosts, func(p db.Post, _ int) (int64, bool) {
 		if p.Op {
-			return 0, false
+			return p.PostNumber, true
 		}
-		return p.PostNumber, true
+		return 0, false
 	})
 
 	utils.PatchLastModifiedCreatedAt(dbPosts, time.Now())
@@ -346,6 +346,11 @@ func (b *BoardManager) Run() {
 
 			if threadArchived {
 				delete(b.threadCache, threadNumber)
+				//A thread might be in both the archive and the catalog
+				//due to 4chan cache
+				if threadInCatalog {
+					delete(catalog, threadNumber)
+				}
 
 				wg.Add(1)
 				go func(threadNumber int64) {
@@ -424,7 +429,7 @@ func (b *BoardManager) Run() {
 				}
 			} else {
 				delete(b.threadCache, threadNumber)
-				b.logger.Info("Marking thread as deleted", zap.String("board", b.board), zap.Int64("thread-number", threadNumber))
+				b.logger.Debug("Marking thread as deleted", zap.String("board", b.board), zap.Int64("thread-number", threadNumber))
 				deletedPosts = append(deletedPosts, threadNumber)
 			}
 		}
@@ -470,9 +475,9 @@ func (b *BoardManager) Run() {
 			panic(err)
 		}
 
-		if len(newPosts) > 0 {
+		for _, newPostsBatch := range lo.Chunk(newPosts, insertBatchSize) {
 			_, err := tx.NewInsert().
-				Model(&newPosts).
+				Model(&newPostsBatch).
 				On("CONFLICT DO NOTHING").
 				Returning("NULL").
 				Exec(context.Background())
