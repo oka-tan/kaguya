@@ -349,7 +349,7 @@ func (b *BoardManager) Run() {
 			continue
 		}
 
-		if catalog == nil {
+		if len(catalog) == 0 {
 			b.logger.Debug("Catalog is empty, skipping", zap.String("board", b.board))
 			continue
 		}
