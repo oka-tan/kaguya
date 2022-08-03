@@ -22,4 +22,5 @@ LICENSE
 README.md
 shell.nix
 config.example.json
+config.json
 

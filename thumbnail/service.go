@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/uptrace/bun"
 	"go.uber.org/zap"
 )
@@ -33,25 +32,15 @@ type Service struct {
 }
 
 //NewService creates a Service
-func NewService(conf *config.ImagesConfig, pg *bun.DB, logger *zap.Logger) *Service {
+func NewService(conf *config.ImagesConfig, bucketName string, pg *bun.DB, s3Client *minio.Client, logger *zap.Logger) *Service {
 	defer logger.Sync()
-
-	s3Client, err := minio.New(conf.S3Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(conf.S3AccessKeyID, conf.S3SecretAccessKey, ""),
-		Secure: conf.S3UseSSL,
-	})
-
-	if err != nil {
-		logger.Fatal("Error creating S3 client", zap.Error(err))
-	}
-
 	s := &Service{
 		s3Client:  s3Client,
 		webClient: http.Client{},
 		pg:        pg,
 		queue:     make(chan queuedThumbnail, 50000),
 		host:      conf.Host,
-		bucket:    conf.S3BucketName,
+		bucket:    bucketName,
 		logger:    logger,
 	}
 
@@ -196,7 +185,10 @@ func (s *Service) run() {
 				sha256String,
 				bytes.NewReader(buffer.Bytes()),
 				int64(buffer.Len()),
-				minio.PutObjectOptions{},
+				minio.PutObjectOptions{
+					ContentType:  "application/jpg",
+					CacheControl: "public, immutable, max-age=604800",
+				},
 			); err != nil {
 				s.logger.Error("Error putting thumbnail on S3", zap.String("source", source), zap.Binary("hash", sha256Hash), zap.Error(err))
 				break

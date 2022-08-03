@@ -12,6 +12,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
@@ -33,8 +35,34 @@ func main() {
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(conf.PostgresConfig.ConnectionString)))
 	pg := bun.NewDB(sqldb, pgdialect.New())
 
-	mediaService := media.NewService(&conf.ImagesConfig, pg, logger)
-	thumbnailService := thumbnail.NewService(&conf.ThumbnailsConfig, pg, logger)
+	s3Client, err := minio.New(conf.S3Config.S3Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(conf.S3Config.S3AccessKeyID, conf.S3Config.S3SecretAccessKey, ""),
+		Secure: conf.S3Config.S3UseSSL,
+	})
+
+	if err != nil {
+		logger.Fatal("Error creating S3 client", zap.Error(err))
+	}
+
+	bucketExists, err := s3Client.BucketExists(context.Background(), conf.S3Config.S3BucketName)
+
+	if err != nil {
+		logger.Fatal("Error checking if bucket exists", zap.Error(err))
+	}
+
+	if !bucketExists {
+		err = s3Client.MakeBucket(context.Background(), conf.S3Config.S3BucketName, minio.MakeBucketOptions{
+			Region:        conf.S3Config.S3Region,
+			ObjectLocking: false,
+		})
+
+		if err != nil {
+			logger.Fatal("Error creating S3 media bucket", zap.Error(err))
+		}
+	}
+
+	mediaService := media.NewService(&conf.ImagesConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
+	thumbnailService := thumbnail.NewService(&conf.ThumbnailsConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
 	apiService := api.NewService(conf.APIConfig, logger)
 
 	for _, boardConfig := range conf.Boards {
@@ -62,6 +90,7 @@ func main() {
 			boardConfig,
 			apiService,
 			logger,
+			conf.PostgresConfig.BatchSize,
 		)
 
 		go func(boardManager manager.BoardManager) {

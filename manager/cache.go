@@ -25,7 +25,7 @@ func hashString(s *string) uint32 {
 	return hash.Sum32()
 }
 
-func toCachedPost(p *api.Post) cachedPost {
+func toCachedPost(p api.Post) cachedPost {
 	comHash := hashString(p.Com)
 	mediaDeleted := p.FileDeleted != nil && *p.FileDeleted == 1
 
@@ -39,13 +39,13 @@ func toCachedPosts(posts []api.Post) map[int64]cachedPost {
 	cachedPosts := make(map[int64]cachedPost)
 
 	for _, p := range posts {
-		cachedPosts[p.No] = toCachedPost(&p)
+		cachedPosts[p.No] = toCachedPost(p)
 	}
 
 	return cachedPosts
 }
 
-func postModified(p *api.Post, cp *cachedPost) bool {
+func postModified(p api.Post, cp cachedPost) bool {
 	if p.FileDeleted != nil && *p.FileDeleted == 1 && (!cp.mediaDeleted) {
 		return true
 	}

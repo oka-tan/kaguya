@@ -17,7 +17,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const insertBatchSize = 50
 const archiveBatchSize = 20
 
 //BoardManager manages a board
@@ -33,6 +32,7 @@ type BoardManager struct {
 	skipArchive      bool
 	board            string
 	logger           *zap.Logger
+	batchSize        int
 }
 
 //NewBoardManager creates and returns a board manager
@@ -43,6 +43,7 @@ func NewBoardManager(
 	boardConfig config.BoardConfig,
 	apiService *api.Service,
 	logger *zap.Logger,
+	batchSize int,
 ) BoardManager {
 	longNapTime, err := time.ParseDuration(boardConfig.LongNapTime)
 	if err != nil {
@@ -61,6 +62,7 @@ func NewBoardManager(
 		board:            boardConfig.Name,
 		skipArchive:      boardConfig.SkipArchive,
 		logger:           logger,
+		batchSize:        batchSize,
 	}
 }
 
@@ -80,8 +82,6 @@ func (b *BoardManager) LoadArchivePosts() error {
 	//
 	//I don't particularly care
 	insertedArchiveThreads := make(map[int64]bool)
-	var mutex sync.Mutex
-	defer b.logger.Sync()
 
 	for i := 0; true; i++ {
 		b.logger.Info("Loading archived threads", zap.String("board", b.board), zap.Int("count", i))
@@ -95,7 +95,9 @@ func (b *BoardManager) LoadArchivePosts() error {
 
 		for _, archiveChunk := range lo.Chunk(archive, archiveBatchSize) {
 			dbPosts := make([]db.Post, 0, 10)
+
 			var wg sync.WaitGroup
+			var mutex sync.Mutex
 
 			mutex.Lock()
 			for i, no := range archiveChunk {
@@ -112,17 +114,30 @@ func (b *BoardManager) LoadArchivePosts() error {
 					posts, err := b.apiService.GetRawThread(b.board, no)
 
 					if err != nil {
-						b.logger.Error("Error loading archive thread", zap.String("board", b.board), zap.Int64("thread-number", no), zap.Error(err))
+						b.logger.Error(
+							"Error loading archive thread",
+							zap.String("board", b.board),
+							zap.Int64("thread-number", no),
+							zap.Error(err),
+						)
 					}
 
 					mutex.Lock()
-					dbPosts = append(dbPosts, lo.Map(posts, func(p api.Post, _ int) db.Post { return db.ToPostModel(b.board, p) })...)
+
+					dbPosts = append(
+						dbPosts,
+						lo.Map(posts, func(p api.Post, _ int) db.Post {
+							return db.ToPostModel(b.board, p)
+						})...,
+					)
+
 					threadsInsertedInThisLoop++
 					insertedArchiveThreads[no] = true
-					mutex.Unlock()
 
+					mutex.Unlock()
 				}(i, no)
 			}
+
 			mutex.Unlock()
 			wg.Wait()
 
@@ -141,7 +156,7 @@ func (b *BoardManager) LoadArchivePosts() error {
 				return err
 			}
 
-			for _, batch := range lo.Chunk(dbPosts, insertBatchSize) {
+			for _, batch := range lo.Chunk(dbPosts, b.batchSize) {
 				_, err := tx.NewInsert().
 					Model(&batch).
 					On("CONFLICT(board, post_number) DO UPDATE SET comment = EXCLUDED.comment, last_modified = EXCLUDED.last_modified, time_media_deleted = COALESCE(post.time_media_deleted, EXCLUDED.time_media_deleted), sticky = CASE post.op WHEN TRUE THEN post.sticky IS TRUE OR EXCLUDED.sticky IS TRUE ELSE NULL END, media_deleted = EXCLUDED.media_deleted, posters = EXCLUDED.posters, closed = CASE post.op WHEN TRUE THEN post.closed IS TRUE OR EXCLUDED.closed IS TRUE ELSE NULL END").
@@ -195,8 +210,6 @@ func (b *BoardManager) LoadArchivePosts() error {
 
 //Init itiates a board manager
 func (b *BoardManager) Init() error {
-	defer b.logger.Sync()
-
 	b.logger.Info("Init'ing board manager", zap.String("board", b.board))
 
 	if !b.skipArchive {
@@ -205,15 +218,15 @@ func (b *BoardManager) Init() error {
 		}
 	}
 
-	var mutex sync.Mutex
-	dbPosts := make([]db.Post, 0, 10)
-
 	catalog, err := b.apiService.GetRawCatalog(b.board)
 
 	if err != nil {
 		return err
 	}
 
+	dbPosts := make([]db.Post, 0, 10)
+
+	var mutex sync.Mutex
 	var wg sync.WaitGroup
 
 	wg.Add(len(catalog))
@@ -224,16 +237,30 @@ func (b *BoardManager) Init() error {
 			posts, err := b.apiService.GetRawThread(b.board, catalogThread.No)
 
 			if err != nil {
-				b.logger.Error("Error looking up catalog thread", zap.String("board", b.board), zap.Int64("thread-number", catalogThread.No), zap.Error(err))
+				b.logger.Error(
+					"Error looking up catalog thread",
+					zap.String("board", b.board),
+					zap.Int64("thread-number", catalogThread.No),
+					zap.Error(err),
+				)
+
 				return
 			}
 
 			mutex.Lock()
-			dbPosts = append(dbPosts, lo.Map(posts, func(p api.Post, _ int) db.Post { return db.ToPostModel(b.board, p) })...)
+
+			dbPosts = append(
+				dbPosts,
+				lo.Map(posts, func(p api.Post, _ int) db.Post {
+					return db.ToPostModel(b.board, p)
+				})...,
+			)
+
 			b.threadCache[catalogThread.No] = cachedThread{
 				lastModified: catalogThread.LastModified,
-				posts:        toCachedPosts(posts),
+				posts:        toCachedPosts(posts[1:]),
 			}
+
 			mutex.Unlock()
 
 		}(catalogThread)
@@ -256,7 +283,7 @@ func (b *BoardManager) Init() error {
 		return err
 	}
 
-	for _, batch := range lo.Chunk(dbPosts, insertBatchSize) {
+	for _, batch := range lo.Chunk(dbPosts, b.batchSize) {
 		_, err := tx.NewInsert().
 			Model(&batch).
 			On("CONFLICT(board, post_number) DO UPDATE SET comment = EXCLUDED.comment, last_modified = EXCLUDED.last_modified, time_media_deleted = COALESCE(post.time_media_deleted, EXCLUDED.time_media_deleted), sticky = CASE post.op WHEN TRUE THEN post.sticky IS TRUE OR EXCLUDED.sticky IS TRUE ELSE NULL END, media_deleted = EXCLUDED.media_deleted, posters = EXCLUDED.posters, closed = CASE post.op WHEN TRUE THEN post.closed IS TRUE OR EXCLUDED.closed IS TRUE ELSE NULL END").
@@ -346,6 +373,7 @@ func (b *BoardManager) Run() {
 
 			if threadArchived {
 				delete(b.threadCache, threadNumber)
+
 				//A thread might be in both the archive and the catalog
 				//due to 4chan cache
 				if threadInCatalog {
@@ -353,7 +381,7 @@ func (b *BoardManager) Run() {
 				}
 
 				wg.Add(1)
-				go func(threadNumber int64) {
+				go func(threadNumber int64, cThread cachedThread) {
 					defer wg.Done()
 
 					rawOp, rawPosts, err := b.apiService.GetStructuredThread(b.board, threadNumber)
@@ -364,7 +392,8 @@ func (b *BoardManager) Run() {
 					}
 
 					mutex.Lock()
-					updatedOps = append(updatedOps, toUpdatedOp(&rawOp))
+
+					updatedOps = append(updatedOps, toUpdatedOp(rawOp))
 
 					for postNumber, cachedPost := range cThread.posts {
 						updatedPost, postNotDeleted := rawPosts[postNumber]
@@ -373,8 +402,8 @@ func (b *BoardManager) Run() {
 						if !postNotDeleted {
 							b.logger.Debug("Marking post as deleted", zap.String("board", b.board), zap.Int64("post-number", postNumber))
 							deletedPosts = append(deletedPosts, postNumber)
-						} else if postModified(&updatedPost, &cachedPost) {
-							updatedPosts = append(updatedPosts, toUpdatedPost(&updatedPost))
+						} else if postModified(updatedPost, cachedPost) {
+							updatedPosts = append(updatedPosts, toUpdatedPost(updatedPost))
 						}
 					}
 
@@ -383,25 +412,32 @@ func (b *BoardManager) Run() {
 					}
 
 					mutex.Unlock()
-				}(threadNumber)
+				}(threadNumber, cThread)
 			} else if threadInCatalog {
 				delete(catalog, threadNumber)
 
 				if catalogThread.LastModified != cThread.lastModified {
 					b.logger.Debug("Updating thread", zap.String("board", b.board), zap.Int64("thread-number", threadNumber))
 					wg.Add(1)
-					go func(threadNumber int64, cThread cachedThread) {
+					go func(threadNumber int64, cThread cachedThread, catalogThread api.CatalogThread) {
 						defer wg.Done()
 
 						rawOp, rawPosts, err := b.apiService.GetStructuredThread(b.board, threadNumber)
 
 						if err != nil {
-							b.logger.Error("Error looking up catalog thread", zap.String("board", b.board), zap.Int64("thread-number", threadNumber), zap.Error(err))
+							b.logger.Error(
+								"Error looking up catalog thread",
+								zap.String("board", b.board),
+								zap.Int64("thread-number", threadNumber),
+								zap.Error(err),
+							)
+
 							return
 						}
 
 						mutex.Lock()
-						updatedOps = append(updatedOps, toUpdatedOp(&rawOp))
+
+						updatedOps = append(updatedOps, toUpdatedOp(rawOp))
 
 						for postNumber, cachedPost := range cThread.posts {
 							updatedPost, postNotDeleted := rawPosts[postNumber]
@@ -409,15 +445,16 @@ func (b *BoardManager) Run() {
 
 							if !postNotDeleted {
 								b.logger.Debug("Marking post as deleted", zap.String("board", b.board), zap.Int64("post-number", postNumber))
+								delete(cThread.posts, postNumber)
 								deletedPosts = append(deletedPosts, postNumber)
-							} else if postModified(&updatedPost, &cachedPost) {
-								cThread.posts[postNumber] = toCachedPost(&updatedPost)
-								updatedPosts = append(updatedPosts, toUpdatedPost(&updatedPost))
+							} else if postModified(updatedPost, cachedPost) {
+								cThread.posts[postNumber] = toCachedPost(updatedPost)
+								updatedPosts = append(updatedPosts, toUpdatedPost(updatedPost))
 							}
 						}
 
 						for _, rawPost := range rawPosts {
-							cThread.posts[rawPost.No] = toCachedPost(&rawPost)
+							cThread.posts[rawPost.No] = toCachedPost(rawPost)
 							newPosts = append(newPosts, db.ToPostModel(b.board, rawPost))
 						}
 
@@ -425,7 +462,7 @@ func (b *BoardManager) Run() {
 						b.threadCache[threadNumber] = cThread
 
 						mutex.Unlock()
-					}(threadNumber, cThread)
+					}(threadNumber, cThread, catalogThread)
 				}
 			} else {
 				delete(b.threadCache, threadNumber)
@@ -438,6 +475,7 @@ func (b *BoardManager) Run() {
 		for threadNumber, catalogThread := range catalog {
 			go func(threadNumber int64, catalogThread api.CatalogThread) {
 				defer wg.Done()
+
 				rawPosts, err := b.apiService.GetRawThread(b.board, threadNumber)
 
 				if err != nil {
@@ -448,7 +486,6 @@ func (b *BoardManager) Run() {
 				mutex.Lock()
 
 				newOps = append(newOps, threadNumber)
-				cachedPosts := toCachedPosts(rawPosts[1:])
 
 				for _, rawPost := range rawPosts {
 					newPosts = append(newPosts, db.ToPostModel(b.board, rawPost))
@@ -456,7 +493,7 @@ func (b *BoardManager) Run() {
 
 				b.threadCache[threadNumber] = cachedThread{
 					lastModified: catalogThread.LastModified,
-					posts:        cachedPosts,
+					posts:        toCachedPosts(rawPosts[1:]),
 				}
 
 				mutex.Unlock()
@@ -475,7 +512,7 @@ func (b *BoardManager) Run() {
 			panic(err)
 		}
 
-		for _, newPostsBatch := range lo.Chunk(newPosts, insertBatchSize) {
+		for _, newPostsBatch := range lo.Chunk(newPosts, b.batchSize) {
 			_, err := tx.NewInsert().
 				Model(&newPostsBatch).
 				On("CONFLICT DO NOTHING").
@@ -533,7 +570,7 @@ func (b *BoardManager) Run() {
 				Exec(context.Background())
 
 			if err != nil {
-				b.logger.Fatal("Error marking deleted posts", zap.String("board", b.board), zap.Error(err))
+				b.logger.Fatal("Error updating posts", zap.String("board", b.board), zap.Error(err))
 			}
 		}
 

@@ -12,7 +12,7 @@ type updatedOp struct {
 	Closed       bool    `bun:"closed"`
 }
 
-func toUpdatedOp(p *api.Post) updatedOp {
+func toUpdatedOp(p api.Post) updatedOp {
 	postNumber := p.No
 
 	comment := p.Com

@@ -1,4 +1,12 @@
 {
+	"S3Config": {
+		"S3Endpoint": "s3:9000",
+		"S3AccessKeyID": "koiwai",
+		"S3SecretAccessKey": "12345678",
+		"S3UseSSL": false,
+		"S3BucketName": "koiwai",
+		"S3Region": "us-west-1"
+	},
 	"APIConfig": {
 		"RequestTimeout": "30s",
 		"Host": "https://a.4cdn.org",
@@ -8,24 +16,12 @@
 	"ImagesConfig": {
 		"RequestTimeout": "20s",
 		"Host": "https://is2.4chan.org",
-		"S3Endpoint": "s3:9000",
-		"S3AccessKeyID": "koiwai",
-		"S3SecretAccessKey": "12345678",
-		"S3UseSSL": false,
-		"S3BucketName": "koiwai",
-		"S3Region": "us-west-1",
-		"Goroutines": 1
+		"Goroutines": 3
 	},
 	"ThumbnailsConfig": {
 		"RequestTimeout": "20s",
 		"Host": "https://is2.4chan.org",
-		"S3Endpoint": "s3:9000",
-		"S3AccessKeyID": "koiwai",
-		"S3SecretAccessKey": "12345678",
-		"S3UseSSL": false,
-		"S3BucketName": "koiwai",
-		"S3Region": "us-west-1",
-		"Goroutines": 4
+		"Goroutines": 3
 	},
 	"PostgresConfig": {
 		"BatchSize": 50,
@@ -33,11 +29,11 @@
 	},
 	"Boards": [
 		{
-			"Name": "a",
+			"Name": "v",
 			"LongNapTime": "20s",
-			"Thumbnails": true,
-			"Media": true,
-			"SkipArchive": false
+			"Thumbnails": false,
+			"Media": false,
+			"SkipArchive": true
 		}
 	]
 }

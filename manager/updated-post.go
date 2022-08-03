@@ -13,7 +13,7 @@ type updatedPost struct {
 var trueBool = true
 var falseBool = false
 
-func toUpdatedPost(p *api.Post) updatedPost {
+func toUpdatedPost(p api.Post) updatedPost {
 	postNumber := p.No
 
 	comment := p.Com

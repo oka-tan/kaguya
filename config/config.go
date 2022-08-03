@@ -13,8 +13,19 @@ type Config struct {
 	ImagesConfig     ImagesConfig
 	ThumbnailsConfig ImagesConfig
 	PostgresConfig   PostgresConfig
+	S3Config         S3Config
 	SkipArchive      bool
 	Boards           []BoardConfig
+}
+
+//S3Config parametrizes Kaguya's configuration for S3 storage.
+type S3Config struct {
+	S3Endpoint        string
+	S3AccessKeyID     string
+	S3SecretAccessKey string
+	S3UseSSL          bool
+	S3BucketName      string
+	S3Region          string
 }
 
 //APIConfig parametrizes Kaguya's configuration for the consumption of 4chan's API.
@@ -27,15 +38,9 @@ type APIConfig struct {
 
 //ImagesConfig parametrizes Kaguya's configuration for downloading media from 4chan and posting it to S3.
 type ImagesConfig struct {
-	RequestTimeout    string
-	Host              string
-	S3Endpoint        string
-	S3AccessKeyID     string
-	S3SecretAccessKey string
-	S3UseSSL          bool
-	S3BucketName      string
-	S3Region          string
-	Goroutines        int
+	RequestTimeout string
+	Host           string
+	Goroutines     int
 }
 
 //PostgresConfig parametrizes Kaguya's configuration for PostgreSQL
