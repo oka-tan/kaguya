@@ -12,6 +12,7 @@ type Config struct {
 	APIConfig        APIConfig
 	ImagesConfig     ImagesConfig
 	ThumbnailsConfig ImagesConfig
+	OekakiConfig     ImagesConfig
 	PostgresConfig   PostgresConfig
 	S3Config         S3Config
 	SkipArchive      bool
@@ -55,6 +56,7 @@ type BoardConfig struct {
 	LongNapTime string
 	Thumbnails  bool
 	Media       bool
+	Oekaki      bool
 	SkipArchive bool
 }
 

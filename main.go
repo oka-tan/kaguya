@@ -8,6 +8,7 @@ import (
 	"kaguya/config"
 	"kaguya/manager"
 	"kaguya/media"
+	"kaguya/oekaki"
 	"kaguya/thumbnail"
 	"log"
 	"time"
@@ -63,6 +64,7 @@ func main() {
 
 	mediaService := media.NewService(&conf.ImagesConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
 	thumbnailService := thumbnail.NewService(&conf.ThumbnailsConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
+	oekakiService := oekaki.NewService(&conf.OekakiConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
 	apiService := api.NewService(conf.APIConfig, logger)
 
 	for _, boardConfig := range conf.Boards {
@@ -87,6 +89,7 @@ func main() {
 			pg,
 			mediaService,
 			thumbnailService,
+			oekakiService,
 			boardConfig,
 			apiService,
 			logger,

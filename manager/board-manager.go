@@ -7,6 +7,7 @@ import (
 	"kaguya/config"
 	"kaguya/db"
 	"kaguya/media"
+	"kaguya/oekaki"
 	"kaguya/thumbnail"
 	"kaguya/utils"
 	"sync"
@@ -25,10 +26,12 @@ type BoardManager struct {
 	pg               *bun.DB
 	mediaService     *media.Service
 	thumbnailService *thumbnail.Service
+	oekakiService    *oekaki.Service
 	threadCache      map[int64]cachedThread
 	longNapTime      time.Duration
 	media            bool
 	thumbnails       bool
+	oekaki           bool
 	skipArchive      bool
 	board            string
 	logger           *zap.Logger
@@ -40,6 +43,7 @@ func NewBoardManager(
 	pg *bun.DB,
 	mediaService *media.Service,
 	thumbnailService *thumbnail.Service,
+	oekakiService *oekaki.Service,
 	boardConfig config.BoardConfig,
 	apiService *api.Service,
 	logger *zap.Logger,
@@ -55,10 +59,12 @@ func NewBoardManager(
 		pg:               pg,
 		mediaService:     mediaService,
 		thumbnailService: thumbnailService,
+		oekakiService:    oekakiService,
 		threadCache:      make(map[int64]cachedThread),
 		longNapTime:      longNapTime,
 		media:            boardConfig.Media,
 		thumbnails:       boardConfig.Thumbnails,
+		oekaki:           boardConfig.Oekaki,
 		board:            boardConfig.Name,
 		skipArchive:      boardConfig.SkipArchive,
 		logger:           logger,
@@ -196,6 +202,11 @@ func (b *BoardManager) LoadArchivePosts() error {
 				b.logger.Debug("Loading thumbnails", zap.String("board", b.board))
 				b.thumbnailService.Enqueue(dbPosts)
 			}
+
+			if b.oekaki {
+				b.logger.Debug("Loading oekaki", zap.String("board", b.board))
+				b.oekakiService.Enqueue(dbPosts)
+			}
 		}
 
 		if threadsInsertedInThisLoop == 0 {
@@ -322,6 +333,11 @@ func (b *BoardManager) Init() error {
 	if b.thumbnails {
 		b.logger.Debug("Loading thumbnails", zap.String("board", b.board))
 		b.thumbnailService.Enqueue(dbPosts)
+	}
+
+	if b.oekaki {
+		b.logger.Debug("Loading oekaki", zap.String("board", b.board))
+		b.oekakiService.Enqueue(dbPosts)
 	}
 
 	return nil
@@ -607,6 +623,11 @@ func (b *BoardManager) Run() {
 		if b.thumbnails {
 			b.logger.Debug("Loading thumbnails", zap.String("board", b.board))
 			b.thumbnailService.Enqueue(newPosts)
+		}
+
+		if b.oekaki {
+			b.logger.Debug("Loading oekaki", zap.String("board", b.board))
+			b.oekakiService.Enqueue(newPosts)
 		}
 
 		b.logger.Sync()
