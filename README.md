@@ -40,6 +40,10 @@
   * RequestTimeout - Request timeout for thumbnail downloads as a Go duration string (i.e. "30s" for 30 seconds)
   * Host - 4chan media cdn host
   * Goroutines - Number of simultaneous requests for thumbnails (thumbnails are stored in memory before being uploaded to S3, hence each of these costs 64kb of memory)
+* OekakiConfig - Tegaki replay download and storage configuration
+  * RequestTimeout - Request timeout for thumbnail downloads as a Go duration string (i.e. "30s" for 30 seconds)
+  * Host - 4chan media cdn host
+  * Goroutines - Number of simultaneous requests for tgkr files (tgkr are stored in memory before being uploaded to S3, hence each of these costs ~256kb of memory)
 * PostgresConfig - Postgres DB configuration
   * ConnectionString - PostgreSQL connection string in the form `postgres://${USER}:${PASSWORD}@${HOST}:${PORT}/${DBNAME}?timeout=${TIMEOUT_DURATION}&sslmode=${POSTGRES_SSL_MODE}`, where the timeout is a Go duration string and SSL mode is either "disable" or "enable"
   * BatchSize - Batch size for inserts into database. Leaving it at 50 is fine. Raising or lowering it will most likely provide negligible performance gains/losses.

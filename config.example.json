@@ -23,6 +23,11 @@
 		"Host": "https://is2.4chan.org",
 		"Goroutines": 3
 	},
+	"OekakiConfig": {
+		"RequestTimeout": "20s",
+		"Host": "https://is2.4chan.org",
+		"Goroutines": 3
+	},
 	"PostgresConfig": {
 		"BatchSize": 50,
 		"ConnectionString": "postgres://koiwai:koiwai@koiwai:5432/koiwai?sslmode=disable"
@@ -33,6 +38,7 @@
 			"LongNapTime": "20s",
 			"Thumbnails": false,
 			"Media": false,
+			"Oekaki": false,
 			"SkipArchive": true
 		}
 	]
