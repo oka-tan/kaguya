@@ -186,7 +186,7 @@ func (s *Service) run() {
 				bytes.NewReader(buffer.Bytes()),
 				int64(buffer.Len()),
 				minio.PutObjectOptions{
-					ContentType:  "application/jpg",
+					ContentType:  "image/jpg",
 					CacheControl: "public, immutable, max-age=604800",
 				},
 			); err != nil {
