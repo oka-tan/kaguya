@@ -15,7 +15,7 @@
 * First of all, the koiwai schema file needs to be ran manually on postgres, like `psql -U koiwai -f schema.sql`
 * Edit the config.example.json file to fit your use case
 * Either export the KAGUYA_CONFIG variable to point it to your configuration file or leave it as config.json in the project root
-* Install golang 1.18 or above (there is no above as of the writing of this README.md)
+* Install golang 1.18 or above
 * Run `go build .` on the project root to build your executable
 * Run the executable
 
@@ -58,5 +58,3 @@
 
 * Largely untested
 * Assumes the board has an archive endpoint
-* Doesn't download oekaki
-
