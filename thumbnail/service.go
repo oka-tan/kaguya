@@ -1,9 +1,9 @@
+//Package thumbnail wraps thumbnail downloads and storage
 package thumbnail
 
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -13,7 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/minio/sha256-simd"
+
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/uptrace/bun"
 	"go.uber.org/zap"
 )
@@ -32,15 +35,42 @@ type Service struct {
 }
 
 //NewService creates a Service
-func NewService(conf *config.ImagesConfig, bucketName string, pg *bun.DB, s3Client *minio.Client, logger *zap.Logger) *Service {
+func NewService(conf *config.MediaConfig, pg *bun.DB, logger *zap.Logger) *Service {
 	defer logger.Sync()
+
+	s3Client, err := minio.New(conf.S3Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(conf.S3AccessKeyID, conf.S3SecretAccessKey, ""),
+		Secure: conf.S3UseSSL,
+	})
+
+	if err != nil {
+		logger.Fatal("Error creating S3 client", zap.Error(err))
+	}
+
+	bucketExists, err := s3Client.BucketExists(context.Background(), conf.S3BucketName)
+
+	if err != nil {
+		logger.Fatal("Error checking if bucket exists", zap.Error(err))
+	}
+
+	if !bucketExists {
+		err = s3Client.MakeBucket(context.Background(), conf.S3BucketName, minio.MakeBucketOptions{
+			Region:        conf.S3Region,
+			ObjectLocking: false,
+		})
+
+		if err != nil {
+			logger.Fatal("Error creating S3 thumbnails bucket", zap.Error(err))
+		}
+	}
+
 	s := &Service{
 		s3Client:  s3Client,
 		webClient: http.Client{},
 		pg:        pg,
 		queue:     make(chan queuedThumbnail, 50000),
 		host:      conf.Host,
-		bucket:    bucketName,
+		bucket:    conf.S3BucketName,
 		logger:    logger,
 	}
 
@@ -76,6 +106,7 @@ func (s *Service) insert() {
 				Set("last_modified = ?", now).
 				Where("post.board = _data.board").
 				Where("post.post_number = _data.post_number").
+				Where("post.thumbnail_internal_hash IS NULL").
 				Exec(context.Background())
 
 			if err != nil {
@@ -156,7 +187,7 @@ func (s *Service) run() {
 
 			sha256AlreadyExists, err := s.pg.
 				NewSelect().
-				Model(&db.Media{}).
+				Model(&db.Thumbnail{}).
 				Where("hash = ?", sha256Hash).
 				Exists(context.Background())
 
@@ -187,7 +218,7 @@ func (s *Service) run() {
 				int64(buffer.Len()),
 				minio.PutObjectOptions{
 					ContentType:  "image/jpg",
-					CacheControl: "public, immutable, max-age=604800",
+					CacheControl: "private, immutable, max-age=604800",
 				},
 			); err != nil {
 				s.logger.Error("Error putting thumbnail on S3", zap.String("source", source), zap.Binary("hash", sha256Hash), zap.Error(err))
@@ -195,7 +226,7 @@ func (s *Service) run() {
 			}
 
 			_, err = s.pg.NewInsert().
-				Model(&db.Media{Hash: sha256Hash}).
+				Model(&db.Thumbnail{Hash: sha256Hash}).
 				On("CONFLICT DO NOTHING").
 				Exec(context.Background())
 
@@ -219,7 +250,7 @@ func (s *Service) run() {
 	}
 }
 
-//Retrieve downloads a thumbnail and returns the SHA-256 hash on success
+//Enqueue downloads a thumbnail and returns the SHA-256 hash on success
 //and nil otherwise
 func (s *Service) Enqueue(posts []db.Post) {
 	queuedThumbnails := make([]queuedThumbnail, 0, 10)

@@ -1,63 +1,60 @@
+//Package config wraps Kaguya's configuration
 package config
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
+
+	"github.com/BurntSushi/toml"
 )
 
 //Config parametrizes Kaguya's configuration.
 type Config struct {
-	APIConfig        APIConfig
-	ImagesConfig     ImagesConfig
-	ThumbnailsConfig ImagesConfig
-	OekakiConfig     ImagesConfig
-	PostgresConfig   PostgresConfig
-	S3Config         S3Config
-	SkipArchive      bool
-	Boards           []BoardConfig
-}
-
-//S3Config parametrizes Kaguya's configuration for S3 storage.
-type S3Config struct {
-	S3Endpoint        string
-	S3AccessKeyID     string
-	S3SecretAccessKey string
-	S3UseSSL          bool
-	S3BucketName      string
-	S3Region          string
+	APIConfig        APIConfig      `toml:"api"`
+	MediaConfig      *MediaConfig   `toml:"media"`
+	ThumbnailsConfig *MediaConfig   `toml:"thumbnails"`
+	OekakiConfig     *MediaConfig   `toml:"oekaki"`
+	PostgresConfig   PostgresConfig `toml:"postgres"`
+	Boards           []BoardConfig  `toml:"boards"`
 }
 
 //APIConfig parametrizes Kaguya's configuration for the consumption of 4chan's API.
 type APIConfig struct {
-	RequestTimeout string
-	Host           string
-	Goroutines     int
-	NapTime        string
+	RequestTimeout string `toml:"request_timeout"`
+	Host           string `toml:"host"`
+	Goroutines     int    `toml:"goroutines"`
+	NapTime        string `toml:"nap_time"`
 }
 
-//ImagesConfig parametrizes Kaguya's configuration for downloading media from 4chan and posting it to S3.
-type ImagesConfig struct {
-	RequestTimeout string
-	Host           string
-	Goroutines     int
+//MediaConfig parametrizes Kaguya's configuration for downloading media from 4chan and posting it to S3.
+type MediaConfig struct {
+	RequestTimeout    string `toml:"request_timeout"`
+	Host              string `toml:"host"`
+	Goroutines        int    `toml:"goroutines"`
+	S3Endpoint        string `toml:"s3_endpoint"`
+	S3AccessKeyID     string `toml:"s3_access_key_id"`
+	S3SecretAccessKey string `toml:"s3_secret_access_key"`
+	S3UseSSL          bool   `toml:"s3_use_ssl"`
+	S3BucketName      string `toml:"s3_bucket_name"`
+	S3Region          string `toml:"s3_region"`
 }
 
 //PostgresConfig parametrizes Kaguya's configuration for PostgreSQL
 type PostgresConfig struct {
-	BatchSize        int
-	ConnectionString string
+	BatchSize        int    `toml:"batch_size"`
+	ConnectionString string `toml:"connection_string"`
 }
 
 //BoardConfig parametrizes Kaguya's configuration for each board being scraped
 type BoardConfig struct {
-	Name        string
-	LongNapTime string
-	Thumbnails  bool
-	Media       bool
-	Oekaki      bool
-	SkipArchive bool
+	Name        string `toml:"name"`
+	LongNapTime string `toml:"long_nap_time"`
+	Thumbnails  bool   `toml:"thumbnails"`
+	Media       bool   `toml:"media"`
+	Oekaki      bool   `toml:"oekaki"`
+	SkipArchive bool   `toml:"skip_archive"`
+	BStyle      bool   `toml:"b_style"`
+	PageCap     uint8  `toml:"page_cap"`
 }
 
 //LoadConfig reads config.json and unmarshals it into a Config struct.
@@ -66,25 +63,21 @@ func LoadConfig() Config {
 	configFile := os.Getenv("KAGUYA_CONFIG")
 
 	if configFile == "" {
-		configFile = "./config.json"
+		configFile = "./config.toml"
 	}
 
-	blob, err := ioutil.ReadFile(configFile)
+	f, err := os.Open(configFile)
 
 	if err != nil {
 		log.Fatalf("Error loading configuration file: %v", err)
 	}
 
+	defer f.Close()
+
 	var conf Config
 
-	err = json.Unmarshal(blob, &conf)
-
-	if err != nil {
-		log.Fatalf(
-			"Error unmarshalling configuration file contents to JSON:\n File contents: %s\n Error message: %s",
-			blob,
-			err,
-		)
+	if _, err := toml.NewDecoder(f).Decode(&conf); err != nil {
+		log.Fatalln(err)
 	}
 
 	return conf

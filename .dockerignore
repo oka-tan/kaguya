@@ -1,6 +1,3 @@
-#Configuration
-config.json
-
 #Docker
 Dockerfile
 docker-compose.yml
@@ -21,6 +18,6 @@ kaguya
 LICENSE
 README.md
 shell.nix
-config.example.json
-config.json
+config.example.toml
+config.toml
 

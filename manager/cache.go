@@ -10,6 +10,12 @@ type cachedThread struct {
 	posts        map[int64]cachedPost
 }
 
+type archivelessCachedThread struct {
+	page         uint8
+	lastModified uint64
+	posts        map[int64]cachedPost
+}
+
 type cachedPost struct {
 	comHash      uint32
 	mediaDeleted bool

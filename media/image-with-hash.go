@@ -1,3 +1,4 @@
+//Package media wraps media downloads and storage
 package media
 
 type mediaWithHash struct {

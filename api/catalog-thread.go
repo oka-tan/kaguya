@@ -4,4 +4,5 @@ package api
 type CatalogThread struct {
 	No           int64  `json:"no"`
 	LastModified uint64 `json:"last_modified"`
+	Page         uint8  `json:"-"`
 }

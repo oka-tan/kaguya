@@ -142,7 +142,13 @@ func (s *Service) GetStructuredCatalog(board string) (map[int64]CatalogThread, e
 	case catalogPages := <-returnChannel:
 		{
 			return lo.KeyBy(
-				lo.Flatten(lo.Map(catalogPages, func(catalogPage CatalogPage, _ int) []CatalogThread { return catalogPage.Threads })),
+				lo.Flatten(lo.Map(catalogPages, func(catalogPage CatalogPage, _ int) []CatalogThread {
+					for i := range catalogPage.Threads {
+						catalogPage.Threads[i].Page = catalogPage.Page
+					}
+
+					return catalogPage.Threads
+				})),
 				func(catalogThread CatalogThread) int64 { return catalogThread.No },
 			), nil
 		}
@@ -169,7 +175,13 @@ func (s *Service) GetRawCatalog(board string) ([]CatalogThread, error) {
 		{
 			return lo.Flatten(lo.Map(
 				catalogPages,
-				func(catalogPage CatalogPage, _ int) []CatalogThread { return catalogPage.Threads },
+				func(catalogPage CatalogPage, _ int) []CatalogThread {
+					for i := range catalogPage.Threads {
+						catalogPage.Threads[i].Page = catalogPage.Page
+					}
+
+					return catalogPage.Threads
+				},
 			)), nil
 		}
 	case err := <-errorReturnChannel:

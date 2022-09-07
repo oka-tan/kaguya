@@ -1,3 +1,4 @@
+//Package db provides entities for DB access
 package db
 
 import "github.com/uptrace/bun"

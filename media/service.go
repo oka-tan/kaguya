@@ -3,19 +3,21 @@ package media
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"kaguya/config"
 	"kaguya/db"
-	"kaguya/utils"
 	"mime"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/minio/sha256-simd"
+
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/uptrace/bun"
 	"go.uber.org/zap"
 )
@@ -34,15 +36,42 @@ type Service struct {
 }
 
 //NewService creates a Service
-func NewService(conf *config.ImagesConfig, bucketName string, pg *bun.DB, s3Client *minio.Client, logger *zap.Logger) *Service {
+func NewService(conf *config.MediaConfig, pg *bun.DB, logger *zap.Logger) *Service {
 	defer logger.Sync()
+
+	s3Client, err := minio.New(conf.S3Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(conf.S3AccessKeyID, conf.S3SecretAccessKey, ""),
+		Secure: conf.S3UseSSL,
+	})
+
+	if err != nil {
+		logger.Fatal("Error creating S3 client", zap.Error(err))
+	}
+
+	bucketExists, err := s3Client.BucketExists(context.Background(), conf.S3BucketName)
+
+	if err != nil {
+		logger.Fatal("Error checking if bucket exists", zap.Error(err))
+	}
+
+	if !bucketExists {
+		err = s3Client.MakeBucket(context.Background(), conf.S3BucketName, minio.MakeBucketOptions{
+			Region:        conf.S3Region,
+			ObjectLocking: false,
+		})
+
+		if err != nil {
+			logger.Fatal("Error creating S3 media bucket", zap.Error(err))
+		}
+	}
+
 	s := &Service{
 		s3Client:  s3Client,
 		webClient: http.Client{},
 		pg:        pg,
 		queue:     make(chan queuedImage, 50000),
 		host:      conf.Host,
-		bucket:    bucketName,
+		bucket:    conf.S3BucketName,
 		logger:    logger,
 	}
 
@@ -78,6 +107,7 @@ func (s *Service) insert() {
 				Set("last_modified = ?", now).
 				Where("post.board = _data.board").
 				Where("post.post_number = _data.post_number").
+				Where("post.media_internal_hash IS NULL").
 				Exec(context.Background())
 
 			if err != nil {
@@ -184,7 +214,7 @@ func (s *Service) run() {
 				bytes.NewReader(buffer.Bytes()),
 				int64(buffer.Len()),
 				minio.PutObjectOptions{
-					CacheControl: "public, immutable, max-age=604800",
+					CacheControl: "private, immutable, max-age=604800",
 					ContentType:  mime.TypeByExtension("." + queuedImage.mediaExtension),
 				},
 			); err != nil {
@@ -240,7 +270,7 @@ func (s *Service) Enqueue(posts []db.Post) {
 					mediaExtension: cachedExtensionString,
 				})
 			} else {
-				clonedExtension := utils.CloneString(*p.MediaExtension)
+				clonedExtension := strings.Clone(*p.MediaExtension)
 				extensions[clonedExtension] = clonedExtension
 
 				queuedImages = append(queuedImages, queuedImage{

@@ -1,4 +1,4 @@
 *.pdf
-config.json
+config.toml
 kaguya
 

@@ -1,3 +1,4 @@
+//Package api wraps access to the 4chan api
 package api
 
 //CatalogPage is a 4chan page as it comes from the /catalog endpoint

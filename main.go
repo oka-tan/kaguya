@@ -13,8 +13,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
@@ -36,35 +34,21 @@ func main() {
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(conf.PostgresConfig.ConnectionString)))
 	pg := bun.NewDB(sqldb, pgdialect.New())
 
-	s3Client, err := minio.New(conf.S3Config.S3Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(conf.S3Config.S3AccessKeyID, conf.S3Config.S3SecretAccessKey, ""),
-		Secure: conf.S3Config.S3UseSSL,
-	})
-
-	if err != nil {
-		logger.Fatal("Error creating S3 client", zap.Error(err))
+	var mediaService *media.Service
+	if conf.MediaConfig != nil {
+		mediaService = media.NewService(conf.MediaConfig, pg, logger)
 	}
 
-	bucketExists, err := s3Client.BucketExists(context.Background(), conf.S3Config.S3BucketName)
-
-	if err != nil {
-		logger.Fatal("Error checking if bucket exists", zap.Error(err))
+	var thumbnailService *thumbnail.Service
+	if conf.ThumbnailsConfig != nil {
+		thumbnailService = thumbnail.NewService(conf.ThumbnailsConfig, pg, logger)
 	}
 
-	if !bucketExists {
-		err = s3Client.MakeBucket(context.Background(), conf.S3Config.S3BucketName, minio.MakeBucketOptions{
-			Region:        conf.S3Config.S3Region,
-			ObjectLocking: false,
-		})
-
-		if err != nil {
-			logger.Fatal("Error creating S3 media bucket", zap.Error(err))
-		}
+	var oekakiService *oekaki.Service
+	if conf.OekakiConfig != nil {
+		oekakiService = oekaki.NewService(conf.OekakiConfig, pg, logger)
 	}
 
-	mediaService := media.NewService(&conf.ImagesConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
-	thumbnailService := thumbnail.NewService(&conf.ThumbnailsConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
-	oekakiService := oekaki.NewService(&conf.OekakiConfig, conf.S3Config.S3BucketName, pg, s3Client, logger)
 	apiService := api.NewService(conf.APIConfig, logger)
 
 	for _, boardConfig := range conf.Boards {
@@ -85,24 +69,45 @@ func main() {
 			)
 		}
 
-		boardManager := manager.NewBoardManager(
-			pg,
-			mediaService,
-			thumbnailService,
-			oekakiService,
-			boardConfig,
-			apiService,
-			logger,
-			conf.PostgresConfig.BatchSize,
-		)
+		if boardConfig.BStyle {
+			boardManager := manager.NewBBoardManager(
+				pg,
+				mediaService,
+				thumbnailService,
+				oekakiService,
+				boardConfig,
+				apiService,
+				logger,
+				conf.PostgresConfig.BatchSize,
+			)
 
-		go func(boardManager manager.BoardManager) {
-			if err := boardManager.Init(); err != nil {
-				logger.Fatal("Erorr init'ing board manager", zap.Error(err))
-			}
+			go func(boardManager manager.BBoardManager) {
+				if err := boardManager.Init(); err != nil {
+					logger.Fatal("Erorr init'ing board manager", zap.Error(err))
+				}
 
-			boardManager.Run()
-		}(boardManager)
+				boardManager.Run()
+			}(boardManager)
+		} else {
+			boardManager := manager.NewBoardManager(
+				pg,
+				mediaService,
+				thumbnailService,
+				oekakiService,
+				boardConfig,
+				apiService,
+				logger,
+				conf.PostgresConfig.BatchSize,
+			)
+
+			go func(boardManager manager.BoardManager) {
+				if err := boardManager.Init(); err != nil {
+					logger.Fatal("Erorr init'ing board manager", zap.Error(err))
+				}
+
+				boardManager.Run()
+			}(boardManager)
+		}
 	}
 
 	logger.Sync()

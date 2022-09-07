@@ -1,0 +1,72 @@
+#Media (including whole images, pdfs and webms, but not thumbnails
+#and tegaki replays) downloads and storage configuration
+[media]
+#S3 endpoint where media will be stored
+s3_endpoint = "s3:9000"
+s3_access_key_id = "koiwai"
+s3_secret_access_key = "12345678"
+s3_use_ssl = false
+#Bucket where media will be stored.
+#Thumbnails, media and tegaki replay can all
+#be stored in the same bucket
+s3_bucket_name = "koiwai-media"
+s3_region = "us-east-1"
+#Request timeout for downloads
+request_timeout = "60s"
+#4chan images host
+host = "https://i.4cdn.org"
+#Caps number of simultaneous downloads
+goroutines = 1
+
+#Thumbnail downloads and storage configuration
+[thumbnails]
+s3_endpoint = "s3:9000"
+s3_access_key_id = "koiwai"
+s3_secret_access_key = "12345678"
+s3_use_ssl = false
+s3_bucket_name = "koiwai-thumbnails"
+s3_region = "us-east-1"
+request_timeout = "60s"
+host = "https://i.4cdn.org"
+goroutines = 1
+
+#Oekaki downloads and storage configuration
+[oekaki]
+s3_endpoint = "s3:9000"
+s3_access_key_id = "koiwai"
+s3_secret_access_key = "12345678"
+s3_use_ssl = false
+s3_bucket_name = "koiwai-oekaki"
+s3_region = "us-east-1"
+request_timeout = "60s"
+host = "https://i.4cdn.org"
+goroutines = 1
+
+#4chan API consumption configuration
+[api]
+request_timeout = "30s"
+host = "https://a.4cdn.org"
+#Caps number of simultaneous requests
+goroutines = 4
+#Nap time between requests for each goroutine
+nap_time = "0.2s"
+
+#Postgres configuration
+[postgres]
+#Batch size for batch insertion of posts
+#into the DB
+batch_size = 50
+connection_string = "postgres://koiwai:koiwai@koiwai:5432/koiwai?sslmode=disable"
+
+[[boards]]
+name = "v"
+#Nap time between catalog scrapes
+long_nap_time = "20s"
+thumbnails = false
+media = false
+oekaki = false
+#Whether or not the scraping
+#should start off by downloading and storing every
+#thread in the archive
+skip_archive = true
+
