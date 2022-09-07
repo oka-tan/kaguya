@@ -1,4 +1,4 @@
-# kaguya
+# Kaguya
 
 4chan Koiwai-compatible scraper
 
@@ -12,49 +12,13 @@
 
 ## Usage
 
-* First of all, the koiwai schema file needs to be ran manually on postgres, like `psql -U koiwai -f schema.sql`
-* Edit the config.example.json file to fit your use case
-* Either export the KAGUYA_CONFIG variable to point it to your configuration file or leave it as config.json in the project root
+* First of all, the schema file needs to be ran manually on postgres
+* Edit the config.example.toml file to fit your use case
+* Either export the KAGUYA_CONFIG variable to point it to your configuration file or leave it as config.toml in the project root
 * Install golang 1.18 or above
 * Run `go build .` on the project root to build your executable
 * Run the executable
 
-## Configuration
-
-* S3Config
-  * S3Endpoint - S3 endpoint for media storage
-  * S3AccessKeyID - S3 Access Key ID
-  * S3SecretAccessKey - S3 Secret Access Key
-  * S3UseSSL - Whether or not to use SSL for S3
-  * S3BucketName - S3 bucket name
-* APIConfig - API consumption configuration
-  * RequestTimeout - Request timeout for the API as a Go duration string (i.e. "30s" for 30 seconds)
-  * Host - API host 
-  * Goroutines - Number of simultaneous requests Kaguya may make to the API
-  * NapTime - Minimum time between API requests
-* ImagesConfig - Media download and storage configuration
-  * RequestTimeout - Request timeout for media downloads as a Go duration string (i.e. "30s" for 30 seconds)
-  * Host - 4chan media cdn host
-  * Goroutines - Number of simultaneous requests for media (media is stored in memory before being uploaded to S3, hence each of these costs 6mb of memory)
-* ThumbnailsConfig - Thumbnail download and storage configuration
-  * RequestTimeout - Request timeout for thumbnail downloads as a Go duration string (i.e. "30s" for 30 seconds)
-  * Host - 4chan media cdn host
-  * Goroutines - Number of simultaneous requests for thumbnails (thumbnails are stored in memory before being uploaded to S3, hence each of these costs 64kb of memory)
-* OekakiConfig - Tegaki replay download and storage configuration
-  * RequestTimeout - Request timeout for thumbnail downloads as a Go duration string (i.e. "30s" for 30 seconds)
-  * Host - 4chan media cdn host
-  * Goroutines - Number of simultaneous requests for tgkr files (tgkr are stored in memory before being uploaded to S3, hence each of these costs ~256kb of memory)
-* PostgresConfig - Postgres DB configuration
-  * ConnectionString - PostgreSQL connection string in the form `postgres://${USER}:${PASSWORD}@${HOST}:${PORT}/${DBNAME}?timeout=${TIMEOUT_DURATION}&sslmode=${POSTGRES_SSL_MODE}`, where the timeout is a Go duration string and SSL mode is either "disable" or "enable"
-  * BatchSize - Batch size for inserts into database. Leaving it at 50 is fine. Raising or lowering it will most likely provide negligible performance gains/losses.
-* Boards - Array of boards to be scraped
-  * Name - Board name without slashes (i.e. "a", "pol")
-  * LongNapTime - Wait between loops as a Go duration string (i.e. "30s" for 30 seconds)
-  * Thumbnails - Whether or not to download thumbnails for the board
-  * Media - Whether or not to download media for the board
-  * SkipArchive - Whether or not to skip the archive when initially scraping (scraping the archive can take half a bit on boards like /v/)
-
 ## Known Issues
 
 * Largely untested
-* Assumes the board has an archive endpoint
