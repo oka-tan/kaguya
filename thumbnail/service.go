@@ -218,7 +218,7 @@ func (s *Service) run() {
 				int64(buffer.Len()),
 				minio.PutObjectOptions{
 					ContentType:  "image/jpg",
-					CacheControl: "private, immutable, max-age=604800",
+					CacheControl: "public, immutable, max-age=604800, s-maxage=600",
 				},
 			); err != nil {
 				s.logger.Error("Error putting thumbnail on S3", zap.String("source", source), zap.Binary("hash", sha256Hash), zap.Error(err))
