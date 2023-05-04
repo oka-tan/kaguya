@@ -8,11 +8,11 @@ import (
 	"github.com/samber/lo"
 )
 
-//ToPostModel turns an API post into a
-//database post.
-//This function does NOT calculate replies,
-//set last_modified, set created_at, calculate replies
-//counts or calculate hashes
+// ToPostModel turns an API post into a
+// database post.
+// This function does NOT calculate replies,
+// set last_modified, set created_at, calculate replies
+// counts or calculate hashes
 func ToPostModel(board string, p api.Post) Post {
 	threadNumber := p.Resto
 	if threadNumber == 0 {
@@ -171,7 +171,6 @@ func ToPostModel(board string, p api.Post) Post {
 		ThreadNumber:    threadNumber,
 		Op:              op,
 		Deleted:         false,
-		Hidden:          false,
 		TimePosted:      timePosted,
 		Name:            name,
 		Tripcode:        tripcode,
@@ -199,5 +198,7 @@ func ToPostModel(board string, p api.Post) Post {
 		Closed:          closed,
 		Posters:         posters,
 		Since4Pass:      since4Pass,
+
+		Hidden: false,
 	}
 }

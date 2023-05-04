@@ -6,7 +6,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-//Post is a post in the db
+// Post is a post in the db
 type Post struct {
 	bun.BaseModel `bun:"table:post,alias:post"`
 
@@ -15,7 +15,6 @@ type Post struct {
 	ThreadNumber          int64      `bun:"thread_number"`
 	Op                    bool       `bun:"op"`
 	Deleted               bool       `bun:"deleted"`
-	Hidden                bool       `bun:"hidden"`
 	TimePosted            time.Time  `bun:"time_posted"`
 	LastModified          time.Time  `bun:"last_modified"`
 	CreatedAt             time.Time  `bun:"created_at"`
@@ -49,4 +48,6 @@ type Post struct {
 	Posters               *int16     `bun:"posters"`
 	Replies               *int16     `bun:"replies"`
 	Since4Pass            *int16     `bun:"since4pass"`
+
+	Hidden bool `bun:"hidden"`
 }

@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine AS build
+FROM golang:1.19-alpine AS build
 WORKDIR /app
 
 COPY go.mod .
@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN go build .
 
-FROM alpine:3.16.0
+FROM alpine:3.17.3
 WORKDIR /app
 
 RUN apk add tzdata
